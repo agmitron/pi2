@@ -61,6 +61,11 @@
           enable = true;
           nssmdns4 = true;
           openFirewall = true;
+          publish = {
+            enable = true;
+            addresses = true;
+            workstation = true;
+          };
         };
 
         system.stateVersion = "25.11";
@@ -97,10 +102,104 @@
           ];
         };
 
+      nixosConfigurations.rpi5 =
+        nixos-raspberrypi.lib.nixosSystem {
+          specialArgs = inputs // {
+            nixos-raspberrypi = nixos-raspberrypi;
+          };
+
+          modules = [
+            ({ nixos-raspberrypi, ... }: {
+              imports = with nixos-raspberrypi.nixosModules; [
+                raspberry-pi-5.base
+                raspberry-pi-5.bluetooth
+                raspberry-pi-5.page-size-16k
+                sd-image
+              ];
+
+              boot.loader.raspberry-pi.bootloader = "kernel";
+            })
+
+            ({ config, pkgs, lib, ... }: {
+              nixpkgs.hostPlatform = lib.mkDefault "aarch64-linux";
+
+              networking.hostName = "pi";
+              networking.networkmanager.enable = true;
+              networking.firewall.allowedTCPPorts = [ 22 ];
+
+              time.timeZone = "Asia/Tbilisi";
+
+              nix.settings.experimental-features = [
+                "nix-command"
+                "flakes"
+              ];
+
+              users.users.agmitron = {
+                isNormalUser = true;
+                extraGroups = [
+                  "wheel"
+                  "networkmanager"
+                ];
+
+                openssh.authorizedKeys.keys = [
+                  sshKey
+                ];
+              };
+
+              security.sudo.wheelNeedsPassword = false;
+
+              services.openssh = {
+                enable = true;
+                openFirewall = true;
+                settings = {
+                  PasswordAuthentication = false;
+                  PermitRootLogin = "prohibit-password";
+                };
+              };
+
+              services.avahi = {
+                enable = true;
+                nssmdns4 = true;
+                openFirewall = true;
+                publish = {
+                  enable = true;
+                  addresses = true;
+                  workstation = true;
+                };
+              };
+
+              environment.systemPackages = with pkgs; [
+                git
+                vim
+                htop
+                tree
+                tmux
+                curl
+                wget
+              ];
+
+              system.stateVersion = "25.11";
+
+              system.nixos.tags =
+                let
+                  cfg = config.boot.loader.raspberry-pi;
+                in
+                [
+                  "raspberry-pi-${cfg.variant}"
+                  cfg.bootloader
+                  config.boot.kernelPackages.kernel.version
+                ];
+            })
+          ];
+        };
+
       packages.aarch64-linux.rpi5-installer-image =
         self.nixosConfigurations.rpi5-installer.config.system.build.sdImage;
 
+      packages.aarch64-linux.rpi5-image =
+        self.nixosConfigurations.rpi5.config.system.build.sdImage;
+
       packages.aarch64-linux.default =
-        self.packages.aarch64-linux.rpi5-installer-image;
+        self.packages.aarch64-linux.rpi5-image;
     };
 }
