@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+TARGET_HOST="${TARGET_HOST:-pi.local}"
+FLAKE_ATTR="${FLAKE_ATTR:-rpi5}"
+
+nix --accept-flake-config build ".#nixosConfigurations.${FLAKE_ATTR}.config.system.build.toplevel"
+
+nix-store --export $(nix-store --query --requisites ./result) \
+  | ssh "${TARGET_HOST}" 'sudo nix-store --import'
+
+SYSTEM_PATH="$(readlink ./result)"
+
+ssh "${TARGET_HOST}" \
+  "sudo nix-env -p /nix/var/nix/profiles/system --set '${SYSTEM_PATH}' && sudo /nix/var/nix/profiles/system/bin/switch-to-configuration switch"
