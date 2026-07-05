@@ -52,6 +52,7 @@
           htop
           tree
           tmux
+		  lsof
         ];
 
         networking.hostName = "pi";
@@ -165,6 +166,30 @@
                   enable = true;
                   addresses = true;
                   workstation = true;
+                };
+              };
+
+
+				  services.filebrowser = {
+					enable = true;
+					openFirewall = true;
+
+					settings = {
+					  address = "0.0.0.0";
+					  port = 8081;
+					  root = "/srv/";
+					  database = "/var/lib/filebrowser/filebrowser.db";
+					};
+				  };
+
+              services.navidrome = {
+                enable = true;
+                openFirewall = true;
+
+                settings = {
+                  Address = "0.0.0.0";
+                  Port = 4533;
+                  MusicFolder = "/srv/music";
                 };
               };
 
