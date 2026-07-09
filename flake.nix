@@ -149,6 +149,10 @@
 
               security.sudo.wheelNeedsPassword = false;
 
+              users.groups.media = { };
+
+              users.users.navidrome.extraGroups = [ "media" ];
+
               services.openssh = {
                 enable = true;
                 openFirewall = true;
@@ -169,18 +173,42 @@
                 };
               };
 
+              systemd.tmpfiles.rules = [
+                "d /srv 2770 filebrowser media - -"
+                "d /srv/music 2770 filebrowser media - -"
+              ];
 
-				  services.filebrowser = {
-					enable = true;
-					openFirewall = true;
+              system.activationScripts.musicPermissions = {
+                deps = [ "users" ];
+                text = ''
+                  if [ -d /srv ]; then
+                    ${pkgs.coreutils}/bin/chgrp media /srv
+                    ${pkgs.coreutils}/bin/chmod 2770 /srv
+                  fi
 
-					settings = {
-					  address = "0.0.0.0";
-					  port = 8081;
-					  root = "/srv/";
-					  database = "/var/lib/filebrowser/filebrowser.db";
-					};
-				  };
+                  if [ -d /srv/music ]; then
+                    ${pkgs.coreutils}/bin/chgrp -R media /srv/music
+                    ${pkgs.findutils}/bin/find /srv/music -type d -exec ${pkgs.coreutils}/bin/chmod 2770 {} +
+                    ${pkgs.findutils}/bin/find /srv/music -type f -exec ${pkgs.coreutils}/bin/chmod 660 {} +
+                  fi
+                '';
+              };
+
+              services.filebrowser = {
+                enable = true;
+                openFirewall = true;
+
+                settings = {
+                  address = "0.0.0.0";
+                  port = 8081;
+                  root = "/srv/";
+                  database = "/var/lib/filebrowser/filebrowser.db";
+                };
+              };
+
+              systemd.services.filebrowser.serviceConfig = {
+                UMask = lib.mkForce "0027";
+              };
 
               services.navidrome = {
                 enable = true;
@@ -192,6 +220,8 @@
                   MusicFolder = "/srv/music";
                 };
               };
+
+              systemd.services.navidrome.serviceConfig.SupplementaryGroups = [ "media" ];
 
               environment.systemPackages = with pkgs; [
                 git
